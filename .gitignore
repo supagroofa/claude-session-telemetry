@@ -225,3 +225,6 @@ tests/fixtures/real/
 .agent/runs/*/evidence/
 .agent/telemetry/hook.log
 .claude/settings.local.json
+
+# NTFS alternate data streams exposed by WSL
+*:Zone.Identifier
