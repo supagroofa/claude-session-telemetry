@@ -223,4 +223,5 @@ __marimo__/
 *.transcript.jsonl
 tests/fixtures/real/
 .agent/runs/*/evidence/
+.agent/telemetry/hook.log
 .claude/settings.local.json
