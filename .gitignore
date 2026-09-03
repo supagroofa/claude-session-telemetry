@@ -219,9 +219,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# never commit transcripts or telemetry output
-*.jsonl
-telemetry*.json
-telemetry*.html
-.agent/
+# never commit Claude Code transcripts (real ones live in ~/.claude/projects)
+*.transcript.jsonl
+tests/fixtures/real/
+.agent/runs/*/evidence/
 .claude/settings.local.json
