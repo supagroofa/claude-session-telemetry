@@ -9,7 +9,13 @@ import sys
 from pathlib import Path
 
 from claude_session_telemetry import __version__
-from claude_session_telemetry.discover import find_project_dir, find_session, list_sessions
+from claude_session_telemetry.anonymise import anonymise_transcript, iter_anonymised_lines
+from claude_session_telemetry.discover import (
+    find_project_dir,
+    find_session,
+    list_sessions,
+    session_git_branch,
+)
 from claude_session_telemetry.kpis import load_price_table
 from claude_session_telemetry.parse import parse_transcript
 from claude_session_telemetry.phases import phases_from_state_md, single_session_phase
@@ -67,7 +73,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers.add_parser("check", help="Check the current session against a budget")
-    subparsers.add_parser("anonymise", help="Produce an anonymised fixture from a transcript")
+
+    anonymise_parser = subparsers.add_parser(
+        "anonymise", help="Produce an anonymised fixture from a transcript"
+    )
+    anonymise_parser.add_argument("transcript", type=Path, help="Path to a transcript JSONL file")
+    anonymise_parser.add_argument(
+        "--out", type=Path, default=None, help="Output path (default: print to stdout)"
+    )
+
     subparsers.add_parser("export", help="Export telemetry to an external system")
 
     return parser
@@ -100,6 +114,7 @@ def _all_messages(sessions):
 
 def cmd_report(args: argparse.Namespace) -> int:
     project_dir = args.project or Path.cwd()
+    branch = _current_branch(project_dir)
 
     if args.session:
         session = find_session(args.claude_home, args.session)
@@ -117,6 +132,20 @@ def cmd_report(args: argparse.Namespace) -> int:
         if not sessions:
             print(f"cst: no sessions found under {claude_project_dir}", file=sys.stderr)
             return 1
+
+        # A project directory can outlive one plan (branch switches instead of
+        # git worktrees), so sessions recorded there aren't necessarily all
+        # this plan's: keep only sessions whose own recorded branch matches
+        # the branch currently checked out at --project. Sessions with no
+        # recorded branch (older transcripts) are kept rather than dropped.
+        if branch is not None:
+            sessions = [s for s in sessions if session_git_branch(s) in (branch, None)]
+            if not sessions:
+                print(
+                    f"cst: no sessions on branch {branch!r} found under {claude_project_dir}",
+                    file=sys.stderr,
+                )
+                return 1
         run_id = args.plan
 
     session_ids = [s.session_id for s in sessions]
@@ -136,7 +165,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         price_table=load_price_table(),
         phases=phases,
         plan=args.plan,
-        branch=_current_branch(project_dir),
+        branch=branch,
     )
 
     if args.out is not None:
@@ -200,6 +229,29 @@ def cmd_trend(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_anonymise(args: argparse.Namespace) -> int:
+    if not args.transcript.is_file():
+        print(f"cst: no such transcript file {args.transcript}", file=sys.stderr)
+        return 1
+
+    if args.out is None:
+        malformed = 0
+        for anonymised_line, is_malformed in iter_anonymised_lines(args.transcript):
+            if is_malformed:
+                malformed += 1
+                continue
+            print(anonymised_line)
+        if malformed:
+            print(f"cst: skipped {malformed} malformed line(s)", file=sys.stderr)
+        return 0
+
+    stats = anonymise_transcript(args.transcript, args.out)
+    print(f"wrote {stats.lines_written} line(s) to {args.out}")
+    if stats.malformed_lines:
+        print(f"cst: skipped {stats.malformed_lines} malformed line(s)", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -208,6 +260,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_report(args)
     if args.command == "trend":
         return cmd_trend(args)
+    if args.command == "anonymise":
+        return cmd_anonymise(args)
     if args.command is None:
         parser.print_help()
         return 0

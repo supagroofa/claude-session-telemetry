@@ -198,3 +198,67 @@ def test_trend_after_report_prints_the_run(tmp_path, capsys):
     out = capsys.readouterr().out
     assert SESSION_ID in out
     assert "coordinator_model" in out
+
+
+def _write_branch_session(
+    claude_home: Path, project_dir: Path, session_id: str, branch: str, minute: int
+) -> None:
+    encoded = encode_project_path(project_dir)
+    project_transcripts = claude_home / "projects" / encoded
+    project_transcripts.mkdir(parents=True, exist_ok=True)
+    (project_transcripts / f"{session_id}.jsonl").write_text(
+        f'{{"type":"assistant","sessionId":"{session_id}",'
+        f'"timestamp":"2026-01-01T00:{minute:02d}:00.000Z","cwd":"{project_dir}",'
+        f'"gitBranch":"{branch}","message":{{"model":"claude-sonnet-5","role":"assistant",'
+        '"content":[{"type":"text","text":"hi"}],'
+        '"usage":{"input_tokens":1,"output_tokens":1,'
+        '"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}\n',
+        encoding="utf-8",
+    )
+
+
+def test_report_plan_filters_interleaved_plans_by_branch_not_project_folder_alone(tmp_path):
+    # Two plans sharing one directory (no git worktree isolation), with their
+    # sessions interleaved in time by branch switches rather than separated
+    # into distinct project folders.
+    claude_home = tmp_path / "claude_home"
+    project_dir = tmp_path / "project"
+    _init_repo_with_commit(project_dir)
+    run = lambda *args: subprocess.run(  # noqa: E731
+        ["git", *args], cwd=project_dir, check=True, capture_output=True, text=True
+    )
+    run("checkout", "-q", "-b", "planA-branch")
+
+    plan_a_ids = [
+        "aaaaaaaa-0000-0000-0000-000000000001",
+        "aaaaaaaa-0000-0000-0000-000000000002",
+    ]
+    plan_b_ids = [
+        "bbbbbbbb-0000-0000-0000-000000000001",
+        "bbbbbbbb-0000-0000-0000-000000000002",
+    ]
+    # interleaved by timestamp: A, B, A, B
+    _write_branch_session(claude_home, project_dir, plan_a_ids[0], "planA-branch", 0)
+    _write_branch_session(claude_home, project_dir, plan_b_ids[0], "planB-branch", 5)
+    _write_branch_session(claude_home, project_dir, plan_a_ids[1], "planA-branch", 10)
+    _write_branch_session(claude_home, project_dir, plan_b_ids[1], "planB-branch", 15)
+
+    exit_code = main(
+        [
+            "--claude-home",
+            str(claude_home),
+            "report",
+            "--plan",
+            "planA",
+            "--project",
+            str(project_dir),
+        ]
+    )
+
+    assert exit_code == 0
+    report = json.loads(
+        (project_dir / ".agent" / "runs" / "planA" / "telemetry.json").read_text(encoding="utf-8")
+    )
+    assert sorted(report["run"]["session_ids"]) == plan_a_ids
+    assert report["run"]["branch"] == "planA-branch"
+    assert report["tokens"]["api_calls"] == 2  # only plan A's two sessions counted

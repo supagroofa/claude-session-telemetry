@@ -1,10 +1,13 @@
 from pathlib import Path, PureWindowsPath
 
 from claude_session_telemetry.discover import (
+    SessionTranscripts,
     encode_project_path,
     find_project_dir,
     find_session,
     list_sessions,
+    session_cwd,
+    session_git_branch,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "claude_home"
@@ -77,3 +80,43 @@ def test_list_sessions_finds_both_layouts_in_order():
 
 def test_list_sessions_returns_empty_for_missing_project_dir():
     assert list_sessions(FIXTURES / "projects" / "does-not-exist") == ()
+
+
+def test_session_cwd_and_git_branch_return_none_when_absent():
+    session = find_session(FIXTURES, FLAT_SESSION_ID, project_dir=PROJECT_DIR)
+    assert session_cwd(session) is None
+    assert session_git_branch(session) is None
+
+
+def test_session_cwd_and_git_branch_read_from_the_transcript(tmp_path):
+    transcript_path = tmp_path / "session.jsonl"
+    transcript_path.write_text(
+        '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/home/x/project",'
+        '"gitBranch":"feat/example","message":{"role":"user","content":"hi"}}\n',
+        encoding="utf-8",
+    )
+    session = SessionTranscripts(
+        session_id="s1",
+        project_dir=tmp_path,
+        transcript_path=transcript_path,
+        layout="flat",
+    )
+    assert session_cwd(session) == "/home/x/project"
+    assert session_git_branch(session) == "feat/example"
+
+
+def test_session_git_branch_scans_past_records_without_the_field(tmp_path):
+    transcript_path = tmp_path / "session.jsonl"
+    transcript_path.write_text(
+        '{"type":"mode","mode":"accept","sessionId":"s1"}\n'
+        '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","gitBranch":"feat/example",'
+        '"message":{"role":"user","content":"hi"}}\n',
+        encoding="utf-8",
+    )
+    session = SessionTranscripts(
+        session_id="s1",
+        project_dir=tmp_path,
+        transcript_path=transcript_path,
+        layout="flat",
+    )
+    assert session_git_branch(session) == "feat/example"

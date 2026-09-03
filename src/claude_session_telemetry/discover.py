@@ -11,6 +11,7 @@ Layouts observed in the wild (both must be supported):
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -134,3 +135,43 @@ def list_sessions(project_dir: Path) -> tuple[SessionTranscripts, ...]:
         if found is not None:
             sessions.append(found)
     return tuple(sessions)
+
+
+def _peek_first_field(transcript_path: Path, field_name: str, max_lines: int = 50) -> str | None:
+    """Scan a transcript's first ``max_lines`` non-blank lines for a top-level string field.
+
+    Claude Code's project-directory grouping (``encode_project_path``) is a
+    single directory per literal cwd string, but that alone isn't enough to
+    tell sessions apart when several plans run from the *same* directory on
+    different branches (no git worktree isolation) rather than each getting
+    its own worktree path. Every user/assistant/system record carries its
+    own ``cwd``/``gitBranch``, so callers cross-check against that instead
+    of trusting the project-folder grouping alone.
+    """
+    with transcript_path.open(encoding="utf-8") as transcript_file:
+        for index, raw_line in enumerate(transcript_file):
+            if index >= max_lines:
+                break
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(record, dict):
+                continue
+            value = record.get(field_name)
+            if isinstance(value, str):
+                return value
+    return None
+
+
+def session_cwd(session: SessionTranscripts) -> str | None:
+    """The cwd the session itself recorded, from its transcript (not the projects/ folder name)."""
+    return _peek_first_field(session.transcript_path, "cwd")
+
+
+def session_git_branch(session: SessionTranscripts) -> str | None:
+    """The git branch the session itself recorded, from its transcript."""
+    return _peek_first_field(session.transcript_path, "gitBranch")
