@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>claude-session-telemetry report — {{ report.run.id }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; margin-bottom: 2rem; }
+    th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; }
+    th { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h1>Run {{ report.run.id }}</h1>
+  <table>
+    <tr><th>Plan</th><td>{{ report.run.plan or "-" }}</td></tr>
+    <tr><th>Profile</th><td>{{ report.run.profile or "-" }}</td></tr>
+    <tr><th>Branch</th><td>{{ report.run.branch or "-" }}</td></tr>
+    <tr><th>Started</th><td>{{ report.run.started or "-" }}</td></tr>
+    <tr><th>Ended</th><td>{{ report.run.ended or "-" }}</td></tr>
+  </table>
+
+  <h2>Time</h2>
+  <table>
+    <tr><th>Wall (min)</th><td>{{ "%.1f"|format(report.time.wall_min) }}</td></tr>
+    <tr><th>Active (min)</th><td>{{ "%.1f"|format(report.time.active_min) }}</td></tr>
+    <tr><th>Idle: waiting on user (min)</th><td>{{ "%.1f"|format(report.time.idle.user_min) }}</td></tr>
+    <tr><th>Idle: turn overhead (min)</th><td>{{ "%.1f"|format(report.time.idle.overhead_min) }}</td></tr>
+    <tr><th>Idle: token limit (min)</th><td>{{ "%.1f"|format(report.time.idle.limit_min) }}</td></tr>
+    <tr><th>Coordinator (min)</th><td>{{ "%.1f"|format(report.time.coordinator_min) }}</td></tr>
+    <tr><th>Subagent, summed (min)</th><td>{{ "%.1f"|format(report.time.subagent_min) }}</td></tr>
+    <tr><th>Subagent, wall-clock coverage (min)</th><td>{{ "%.1f"|format(report.time.subagent_coverage_min) }}</td></tr>
+    <tr><th>Tool (min)</th><td>{{ "%.1f"|format(report.time.tool_min) }}</td></tr>
+  </table>
+
+  <h2>Tokens</h2>
+  <table>
+    <tr><th>Input</th><td>{{ report.tokens.input }}</td></tr>
+    <tr><th>Cache write</th><td>{{ report.tokens.cache_write }}</td></tr>
+    <tr><th>Cache read</th><td>{{ report.tokens.cache_read }}</td></tr>
+    <tr><th>Output</th><td>{{ report.tokens.output }}</td></tr>
+    <tr><th>Total</th><td>{{ report.tokens.total }}</td></tr>
+    <tr><th>API calls</th><td>{{ report.tokens.api_calls }}</td></tr>
+    <tr><th>Cache-read share</th><td>{{ "%.1f%%"|format(report.tokens.cache_read_share * 100) }}</td></tr>
+    <tr><th>USD (price table {{ report.tokens.price_table_version or "?" }})</th><td>{{ "%.4f"|format(report.tokens.usd) }}</td></tr>
+  </table>
+
+  <h2>Orchestration</h2>
+  <table>
+    <tr><th>Coordinator model</th><td>{{ report.orchestration.coordinator_model or "-" }}</td></tr>
+    <tr><th>Coordinator share of tokens</th><td>{{ "%.1f%%"|format(report.orchestration.coordinator_share_of_tokens * 100) }}</td></tr>
+    <tr><th>Coordinator share of cost</th><td>{{ "%.1f%%"|format(report.orchestration.coordinator_share_of_cost * 100) }}</td></tr>
+    <tr><th>Mean context / coordinator call</th><td>{{ "%.0f"|format(report.orchestration.mean_context_per_coordinator_call) }}</td></tr>
+    <tr><th>Peak context / coordinator call</th><td>{{ report.orchestration.peak_context_per_coordinator_call }}</td></tr>
+    <tr><th>Agents spawned</th><td>{{ report.orchestration.agents_spawned }}</td></tr>
+  </table>
+
+  <h2>Agents</h2>
+  <table>
+    <tr><th>Agent</th><th>Calls</th><th>Output tokens</th><th>Total tokens</th></tr>
+    {% for agent in report.agents %}
+    <tr>
+      <td>{{ agent.name }}</td>
+      <td>{{ agent.calls }}</td>
+      <td>{{ agent.output }}</td>
+      <td>{{ agent.total }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Phases</h2>
+  <table>
+    <tr><th>Phase</th><th>Start</th><th>End</th><th>Duration (min)</th></tr>
+    {% for phase in report.phases %}
+    <tr>
+      <td>{{ phase.name }}</td>
+      <td>{{ phase.start or "-" }}</td>
+      <td>{{ phase.end or "-" }}</td>
+      <td>{{ "%.1f"|format(phase.duration_min) if phase.duration_min is not none else "-" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

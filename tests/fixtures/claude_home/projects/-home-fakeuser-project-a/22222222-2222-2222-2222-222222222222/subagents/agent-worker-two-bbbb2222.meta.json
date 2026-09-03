@@ -1,0 +1,12 @@
+{
+  "agentType": "worker",
+  "description": "synthetic worker task",
+  "name": "worker-two",
+  "spawnDepth": 0,
+  "model": "haiku",
+  "taskKind": "synthetic-fixture",
+  "teamName": "fixtures",
+  "color": "green",
+  "planModeRequired": false,
+  "permissionMode": "auto"
+}

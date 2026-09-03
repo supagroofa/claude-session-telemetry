@@ -1,0 +1,2 @@
+{"type": "user", "sessionId": "22222222-2222-2222-2222-222222222222", "timestamp": "2026-01-01T01:00:00.000Z", "message": {"role": "user", "content": "synthetic fixture prompt two"}}
+{"type": "assistant", "sessionId": "22222222-2222-2222-2222-222222222222", "timestamp": "2026-01-01T01:00:05.000Z", "message": {"model": "claude-opus-5", "role": "assistant", "content": [{"type": "text", "text": "synthetic fixture reply two"}], "usage": {"input_tokens": 20, "output_tokens": 8, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}}}

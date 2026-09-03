@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/supagroofa/claude-session-telemetry/schema/telemetry-1.0.json",
+  "title": "claude-session-telemetry report",
+  "type": "object",
+  "required": ["schema_version", "tool_version", "run", "time", "tokens", "orchestration", "agents", "phases"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "tool_version": { "type": "string" },
+    "run": {
+      "type": "object",
+      "required": ["id", "session_ids", "started", "ended"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "plan": { "type": ["string", "null"] },
+        "profile": { "type": ["string", "null"] },
+        "skill": { "type": ["string", "null"] },
+        "session_ids": { "type": "array", "items": { "type": "string" } },
+        "branch": { "type": ["string", "null"] },
+        "started": { "type": ["string", "null"], "format": "date-time" },
+        "ended": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "time": {
+      "type": "object",
+      "required": [
+        "wall_min", "active_min", "idle", "coordinator_min", "subagent_min",
+        "subagent_coverage_min", "tool_min"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "wall_min": { "type": "number" },
+        "active_min": { "type": "number" },
+        "idle": {
+          "type": "object",
+          "required": ["user_min", "overhead_min", "limit_min"],
+          "additionalProperties": false,
+          "properties": {
+            "user_min": { "type": "number" },
+            "overhead_min": { "type": "number" },
+            "limit_min": { "type": "number" }
+          }
+        },
+        "coordinator_min": { "type": "number" },
+        "subagent_min": { "type": "number" },
+        "subagent_coverage_min": { "type": "number" },
+        "tool_min": { "type": "number" }
+      }
+    },
+    "tokens": {
+      "type": "object",
+      "required": [
+        "input", "cache_write", "cache_read", "output", "total", "api_calls",
+        "cache_read_share", "by_model", "usd", "price_table_version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": "integer" },
+        "cache_write": { "type": "integer" },
+        "cache_read": { "type": "integer" },
+        "output": { "type": "integer" },
+        "total": { "type": "integer" },
+        "api_calls": { "type": "integer" },
+        "cache_read_share": { "type": "number" },
+        "by_model": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["input", "output", "cache_write", "cache_read", "total", "api_calls"],
+            "additionalProperties": false,
+            "properties": {
+              "input": { "type": "integer" },
+              "output": { "type": "integer" },
+              "cache_write": { "type": "integer" },
+              "cache_read": { "type": "integer" },
+              "total": { "type": "integer" },
+              "api_calls": { "type": "integer" }
+            }
+          }
+        },
+        "usd": { "type": "number" },
+        "price_table_version": { "type": ["string", "null"] }
+      }
+    },
+    "orchestration": {
+      "type": "object",
+      "required": [
+        "coordinator_share_of_tokens", "coordinator_share_of_cost", "coordinator_model",
+        "mean_context_per_coordinator_call", "peak_context_per_coordinator_call",
+        "agents_spawned", "calls_per_agent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "coordinator_share_of_tokens": { "type": "number" },
+        "coordinator_share_of_cost": { "type": "number" },
+        "coordinator_model": { "type": ["string", "null"] },
+        "mean_context_per_coordinator_call": { "type": "number" },
+        "peak_context_per_coordinator_call": { "type": "integer" },
+        "agents_spawned": { "type": "integer" },
+        "calls_per_agent": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "calls", "output", "total"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "calls": { "type": "integer" },
+          "output": { "type": "integer" },
+          "total": { "type": "integer" }
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "start", "end", "duration_min"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "start": { "type": ["string", "null"], "format": "date-time" },
+          "end": { "type": ["string", "null"], "format": "date-time" },
+          "duration_min": { "type": ["number", "null"] }
+        }
+      }
+    }
+  }
+}
