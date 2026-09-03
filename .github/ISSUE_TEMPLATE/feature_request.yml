@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an idea for claude-session-telemetry
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: no-transcript
+    attributes:
+      label: Transcript content
+      options:
+        - label: I have not attached any transcript content
+          required: true

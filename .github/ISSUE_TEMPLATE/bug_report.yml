@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a problem with claude-session-telemetry
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: What you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Command(s) run, e.g. `cst report --session <id>`.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `cst --version`, plus OS and Python version.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: no-transcript
+    attributes:
+      label: Transcript content
+      options:
+        - label: I have not attached any transcript content
+          required: true
