@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -m claude_session_telemetry.hook"
+          }
+        ]
+      }
+    ]
+  }
+}
