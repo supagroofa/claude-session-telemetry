@@ -8,14 +8,23 @@ from __future__ import annotations
 
 import tomllib
 from collections.abc import Sequence
+from datetime import timedelta
 from importlib import resources
 
 from claude_session_telemetry.attribute import (
     TokenTotals,
     coordinator_messages,
+    group_by,
     per_agent_token_totals,
     per_model_token_totals,
+    subagent_messages,
     token_totals,
+)
+from claude_session_telemetry.gaps import (
+    DEFAULT_IDLE_THRESHOLD,
+    find_gaps,
+    merge_intervals,
+    tool_call_durations,
 )
 from claude_session_telemetry.parse import COORDINATOR_AGENT_NAME, ParsedMessage
 
@@ -26,6 +35,80 @@ def load_price_table() -> PriceTable:
     """Load the versioned price table bundled with the package."""
     with resources.files("claude_session_telemetry").joinpath("prices.toml").open("rb") as f:
         return tomllib.load(f)
+
+
+def _minutes(duration: timedelta) -> float:
+    return duration.total_seconds() / 60
+
+
+# --- 4.1 Time -----------------------------------------------------------------
+
+
+def wall_minutes(messages: Sequence[ParsedMessage]) -> float:
+    if not messages:
+        return 0.0
+    timestamps = [m.timestamp for m in messages]
+    return _minutes(max(timestamps) - min(timestamps))
+
+
+def active_minutes(
+    messages: Sequence[ParsedMessage], threshold: timedelta = DEFAULT_IDLE_THRESHOLD
+) -> float:
+    if not messages:
+        return 0.0
+    idle = sum((g.duration for g in find_gaps(messages, threshold)), timedelta(0))
+    timestamps = [m.timestamp for m in messages]
+    return _minutes((max(timestamps) - min(timestamps)) - idle)
+
+
+def idle_user_wait_minutes(
+    messages: Sequence[ParsedMessage], threshold: timedelta = DEFAULT_IDLE_THRESHOLD
+) -> float:
+    gaps = find_gaps(messages, threshold)
+    return _minutes(sum((g.duration for g in gaps if g.kind == "user_wait"), timedelta(0)))
+
+
+def idle_turn_overhead_minutes(
+    messages: Sequence[ParsedMessage], threshold: timedelta = DEFAULT_IDLE_THRESHOLD
+) -> float:
+    gaps = find_gaps(messages, threshold)
+    return _minutes(sum((g.duration for g in gaps if g.kind == "turn_overhead"), timedelta(0)))
+
+
+def idle_token_limit_minutes(messages: Sequence[ParsedMessage]) -> float:
+    """Always 0 until trace data (Phase 3) can attribute a gap to a usage-limit pause."""
+    return 0.0
+
+
+def coordinator_minutes(
+    messages: Sequence[ParsedMessage], threshold: timedelta = DEFAULT_IDLE_THRESHOLD
+) -> float:
+    return active_minutes(coordinator_messages(messages), threshold)
+
+
+def subagent_minutes(
+    messages: Sequence[ParsedMessage], threshold: timedelta = DEFAULT_IDLE_THRESHOLD
+) -> float:
+    """Sum of each subagent's own active time; agents running in parallel are double-counted."""
+    return sum(
+        active_minutes(agent_messages, threshold)
+        for agent_messages in group_by(subagent_messages(messages), "agent_name").values()
+    )
+
+
+def subagent_wallclock_coverage_minutes(messages: Sequence[ParsedMessage]) -> float:
+    """Wall-clock time with at least one subagent active (overlap merged, not summed)."""
+    spans = []
+    for agent_messages in group_by(subagent_messages(messages), "agent_name").values():
+        timestamps = [m.timestamp for m in agent_messages]
+        if timestamps:
+            spans.append((min(timestamps), max(timestamps)))
+    merged = merge_intervals(spans)
+    return _minutes(sum((end - start for start, end in merged), timedelta(0)))
+
+
+def tool_minutes(messages: Sequence[ParsedMessage]) -> float:
+    return _minutes(sum(tool_call_durations(messages).values(), timedelta(0)))
 
 
 # --- 4.2 Tokens and cost -----------------------------------------------------
