@@ -1,0 +1,12 @@
+{
+  "agentType": "worker",
+  "description": "synthetic worker task",
+  "name": "worker-one",
+  "spawnDepth": 0,
+  "model": "sonnet",
+  "taskKind": "synthetic-fixture",
+  "teamName": "fixtures",
+  "color": "blue",
+  "planModeRequired": false,
+  "permissionMode": "auto"
+}
