@@ -11,18 +11,33 @@ from claude_session_telemetry.report import load_schema
 SESSION_ID = "11111111-1111-1111-1111-111111111111"
 
 
+def _session_record(session_id: str, timestamp: str, **extra) -> dict:
+    return {
+        "type": "assistant",
+        "sessionId": session_id,
+        "timestamp": timestamp,
+        **extra,
+        "message": {
+            "model": "claude-sonnet-5",
+            "role": "assistant",
+            "content": [{"type": "text", "text": "hi"}],
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0,
+            },
+        },
+    }
+
+
 def _write_session(claude_home: Path, project_dir: Path, session_id: str) -> None:
     encoded = encode_project_path(project_dir)
     project_transcripts = claude_home / "projects" / encoded
     project_transcripts.mkdir(parents=True, exist_ok=True)
+    record = _session_record(session_id, "2026-01-01T00:00:00.000Z")
     (project_transcripts / f"{session_id}.jsonl").write_text(
-        f'{{"type":"assistant","sessionId":"{session_id}",'
-        '"timestamp":"2026-01-01T00:00:00.000Z",'
-        '"message":{"model":"claude-sonnet-5","role":"assistant",'
-        '"content":[{"type":"text","text":"hi"}],'
-        '"usage":{"input_tokens":10,"output_tokens":5,'
-        '"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}\n',
-        encoding="utf-8",
+        json.dumps(record) + "\n", encoding="utf-8"
     )
 
 
@@ -34,7 +49,7 @@ def _init_repo_with_commit(project_dir: Path) -> str:
     run("init", "-q", "-b", "main")
     run("config", "user.email", "fixture@example.com")
     run("config", "user.name", "Fixture")
-    (project_dir / "file.txt").write_text("content")
+    (project_dir / "file.txt").write_text("content", encoding="utf-8")
     run("add", "file.txt")
     run("commit", "-q", "-m", "initial commit")
     return run("rev-parse", "HEAD").stdout.strip()
@@ -206,14 +221,17 @@ def _write_branch_session(
     encoded = encode_project_path(project_dir)
     project_transcripts = claude_home / "projects" / encoded
     project_transcripts.mkdir(parents=True, exist_ok=True)
+    # str(project_dir) contains backslashes on Windows; build the record as a
+    # dict and let json.dumps escape it, rather than interpolating raw path
+    # strings into hand-built JSON text (which breaks on Windows paths).
+    record = _session_record(
+        session_id,
+        f"2026-01-01T00:{minute:02d}:00.000Z",
+        cwd=str(project_dir),
+        gitBranch=branch,
+    )
     (project_transcripts / f"{session_id}.jsonl").write_text(
-        f'{{"type":"assistant","sessionId":"{session_id}",'
-        f'"timestamp":"2026-01-01T00:{minute:02d}:00.000Z","cwd":"{project_dir}",'
-        f'"gitBranch":"{branch}","message":{{"model":"claude-sonnet-5","role":"assistant",'
-        '"content":[{"type":"text","text":"hi"}],'
-        '"usage":{"input_tokens":1,"output_tokens":1,'
-        '"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}}\n',
-        encoding="utf-8",
+        json.dumps(record) + "\n", encoding="utf-8"
     )
 
 

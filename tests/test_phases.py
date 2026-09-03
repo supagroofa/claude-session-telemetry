@@ -115,7 +115,7 @@ def _init_repo_with_commits(tmp_path: Path) -> tuple[Path, dict[str, str]]:
 
     shas = {}
     for name in ("one", "two"):
-        (repo / f"{name}.txt").write_text(name)
+        (repo / f"{name}.txt").write_text(name, encoding="utf-8")
         run("add", f"{name}.txt")
         run("commit", "-q", "-m", f"commit {name}")
         shas[name] = run("rev-parse", "HEAD").stdout.strip()
@@ -138,7 +138,8 @@ def test_phases_from_state_md_end_to_end(tmp_path):
     state_md.write_text(
         "## Log\n\n"
         f"### T1 — a task\nStatus: done | Commit: `{shas['one']}`\n\n"
-        f"### CP1 — a checkpoint\nCommits: `{shas['one']}`, `{shas['two']}`\n"
+        f"### CP1 — a checkpoint\nCommits: `{shas['one']}`, `{shas['two']}`\n",
+        encoding="utf-8",
     )
 
     phases = phases_from_state_md(state_md, repo)
