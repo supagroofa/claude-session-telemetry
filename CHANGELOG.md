@@ -30,3 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cst report` (`--session`/`--plan`, `--project`, `--out`) and `cst trend`
   commands, wired end to end and verified against the real plan-70C
   transcripts (see `docs/backfill-70C.md`).
+- `cst anonymise <transcript> [--out path]` (`anonymise.py`) to produce the
+  synthetic, content-free fixtures under `tests/fixtures/`.
+
+### Fixed
+
+- `cst report --plan` no longer treats every session under a project folder
+  as belonging to one plan. Sessions are now filtered by the branch each
+  transcript itself recorded (`discover.py`'s `session_git_branch`), so
+  plans that share a directory via branch switches (rather than separate
+  git worktrees) don't get their sessions mixed together.
